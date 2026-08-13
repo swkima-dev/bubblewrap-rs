@@ -1,6 +1,7 @@
-use clap::Parser;
+use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser};
 use std::ffi::OsString;
 use std::os::unix::process::ExitStatusExt;
+use std::path::PathBuf;
 use std::process::{ExitCode, ExitStatus};
 
 #[derive(Parser, Debug)]
@@ -34,17 +35,22 @@ struct Args {
     chdir: Option<String>,
 
     /// Bind mount the host path SRC readonly on DEST
-    #[arg(long, num_args = 2, value_names = ["SRC", "DEST"])]
-    ro_bind: Option<Vec<String>>,
+    #[arg(long, num_args = 2, value_names = ["SRC", "DEST"], action = clap::ArgAction::Append)]
+    ro_bind: Vec<String>,
 
     /// Mount new tmpfs on DEST. If the previous option was --perms, it sets
     /// the mode of the tmpfs. Otherwise, the tmpfs has mode 0755.
     #[arg(long, value_name = "DEST")]
-    tmpfs: Option<String>,
+    #[arg(action = clap::ArgAction::Append)]
+    tmpfs: Vec<String>,
+
+    /// Mount a proc filesystem on DEST
+    #[arg(long, value_name = "DEST", action = clap::ArgAction::Append)]
+    proc: Vec<String>,
 
     /// Bind mount the host path SRC on DEST
-    #[arg(long, num_args = 2, value_names = ["SRC", "DEST"])]
-    bind: Option<Vec<String>>,
+    #[arg(long, num_args = 2, value_names = ["SRC", "DEST"], action = clap::ArgAction::Append)]
+    bind: Vec<String>,
 
     /// Create a directory at DEST. If the directory already exists, its
     /// permissions are unmodified, ignoring --perms (use --chmod if the
@@ -53,13 +59,15 @@ struct Args {
     /// sets the mode of the directory. Otherwise, newly-created directories
     /// have mode 0755.
     #[arg(long, value_name = "DEST")]
-    dir: Option<String>,
+    #[arg(action = clap::ArgAction::Append)]
+    dir: Vec<String>,
 
     /// Remount the path DEST as readonly. It works only on the specified
     /// mount point, without changing any other mount point under the
     /// specified path
     #[arg(long, value_name = "DEST")]
-    remount_ro: Option<String>,
+    #[arg(action = clap::ArgAction::Append)]
+    remount_ro: Vec<String>,
 
     /// Program and arguments to execute in the sandbox
     #[arg(required = true, num_args = 1.., allow_hyphen_values = true)]
@@ -67,17 +75,9 @@ struct Args {
 }
 
 fn main() -> ExitCode {
-    let args = Args::parse();
-
-    if args.ro_bind.is_some()
-        || args.tmpfs.is_some()
-        || args.bind.is_some()
-        || args.dir.is_some()
-        || args.remount_ro.is_some()
-    {
-        eprintln!("bubblewrap: filesystem options are not implemented yet");
-        return ExitCode::from(2);
-    }
+    let matches = Args::command().get_matches();
+    let args = Args::from_arg_matches(&matches).unwrap_or_else(|error| error.exit());
+    let filesystem = filesystem_operations(&args, &matches);
 
     if args.die_with_parent
         && let Err(error) = bubblewrap::die_with_parent()
@@ -104,6 +104,36 @@ fn main() -> ExitCode {
     if args.die_with_parent {
         command.die_with_parent();
     }
+    for operation in filesystem {
+        match operation {
+            FilesystemArgument::Bind {
+                source,
+                destination,
+                readonly: false,
+            } => {
+                command.bind(source, destination);
+            }
+            FilesystemArgument::Bind {
+                source,
+                destination,
+                readonly: true,
+            } => {
+                command.ro_bind(source, destination);
+            }
+            FilesystemArgument::Tmpfs(destination) => {
+                command.tmpfs(destination);
+            }
+            FilesystemArgument::Proc(destination) => {
+                command.proc(destination);
+            }
+            FilesystemArgument::Dir(destination) => {
+                command.dir(destination);
+            }
+            FilesystemArgument::RemountReadonly(destination) => {
+                command.remount_readonly(destination);
+            }
+        }
+    }
     if let Some(directory) = args.chdir {
         command.current_dir(directory);
     }
@@ -117,9 +147,133 @@ fn main() -> ExitCode {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum FilesystemArgument {
+    Bind {
+        source: PathBuf,
+        destination: PathBuf,
+        readonly: bool,
+    },
+    Tmpfs(PathBuf),
+    Proc(PathBuf),
+    Dir(PathBuf),
+    RemountReadonly(PathBuf),
+}
+
+fn filesystem_operations(args: &Args, matches: &ArgMatches) -> Vec<FilesystemArgument> {
+    let mut indexed = Vec::new();
+
+    add_bind_operations(&mut indexed, matches, "ro_bind", &args.ro_bind, true);
+    add_bind_operations(&mut indexed, matches, "bind", &args.bind, false);
+    add_path_operations(&mut indexed, matches, "tmpfs", &args.tmpfs, |path| {
+        FilesystemArgument::Tmpfs(path)
+    });
+    add_path_operations(&mut indexed, matches, "proc", &args.proc, |path| {
+        FilesystemArgument::Proc(path)
+    });
+    add_path_operations(&mut indexed, matches, "dir", &args.dir, |path| {
+        FilesystemArgument::Dir(path)
+    });
+    add_path_operations(
+        &mut indexed,
+        matches,
+        "remount_ro",
+        &args.remount_ro,
+        FilesystemArgument::RemountReadonly,
+    );
+
+    indexed.sort_by_key(|(index, _)| *index);
+    indexed
+        .into_iter()
+        .map(|(_, operation)| operation)
+        .collect()
+}
+
+fn add_bind_operations(
+    operations: &mut Vec<(usize, FilesystemArgument)>,
+    matches: &ArgMatches,
+    id: &str,
+    values: &[String],
+    readonly: bool,
+) {
+    let Some(indices) = matches.indices_of(id) else {
+        return;
+    };
+    for (indices, values) in indices
+        .collect::<Vec<_>>()
+        .chunks_exact(2)
+        .zip(values.chunks_exact(2))
+    {
+        operations.push((
+            indices[0],
+            FilesystemArgument::Bind {
+                source: PathBuf::from(&values[0]),
+                destination: PathBuf::from(&values[1]),
+                readonly,
+            },
+        ));
+    }
+}
+
+fn add_path_operations(
+    operations: &mut Vec<(usize, FilesystemArgument)>,
+    matches: &ArgMatches,
+    id: &str,
+    values: &[String],
+    make_operation: impl Fn(PathBuf) -> FilesystemArgument,
+) {
+    let Some(indices) = matches.indices_of(id) else {
+        return;
+    };
+    operations.extend(
+        indices
+            .zip(values)
+            .map(|(index, value)| (index, make_operation(PathBuf::from(value)))),
+    );
+}
+
 fn status_exit_code(status: ExitStatus) -> ExitCode {
     let code = status
         .code()
         .unwrap_or_else(|| 128 + status.signal().unwrap_or(127));
     ExitCode::from(u8::try_from(code).unwrap_or(255))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filesystem_options_preserve_command_line_order() {
+        let matches = Args::command()
+            .try_get_matches_from([
+                "bubblewrap",
+                "--dir",
+                "/workspace",
+                "--ro-bind",
+                "/usr",
+                "/usr",
+                "--tmpfs",
+                "/tmp",
+                "--proc",
+                "/proc",
+                "/bin/true",
+            ])
+            .unwrap();
+        let args = Args::from_arg_matches(&matches).unwrap();
+
+        assert_eq!(
+            filesystem_operations(&args, &matches),
+            vec![
+                FilesystemArgument::Dir(PathBuf::from("/workspace")),
+                FilesystemArgument::Bind {
+                    source: PathBuf::from("/usr"),
+                    destination: PathBuf::from("/usr"),
+                    readonly: true,
+                },
+                FilesystemArgument::Tmpfs(PathBuf::from("/tmp")),
+                FilesystemArgument::Proc(PathBuf::from("/proc")),
+            ]
+        );
+    }
 }

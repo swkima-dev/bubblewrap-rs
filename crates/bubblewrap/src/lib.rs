@@ -8,6 +8,7 @@ mod config;
 mod error;
 mod namespace;
 mod process;
+mod rootfs;
 
 pub use builder::{Child, Command};
 pub use error::{Error, Result};

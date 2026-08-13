@@ -10,4 +10,26 @@ pub(crate) struct SandboxConfig {
     pub(crate) unshare_net: bool,
     pub(crate) new_session: bool,
     pub(crate) die_with_parent: bool,
+    pub(crate) filesystem: Vec<FilesystemOperation>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum FilesystemOperation {
+    Bind {
+        source: PathBuf,
+        destination: PathBuf,
+        readonly: bool,
+    },
+    Tmpfs {
+        destination: PathBuf,
+    },
+    Proc {
+        destination: PathBuf,
+    },
+    Dir {
+        destination: PathBuf,
+    },
+    RemountReadonly {
+        destination: PathBuf,
+    },
 }

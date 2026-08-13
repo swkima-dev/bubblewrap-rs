@@ -1,4 +1,4 @@
-use crate::config::SandboxConfig;
+use crate::config::{FilesystemOperation, SandboxConfig};
 use crate::process;
 use crate::{Error, Result};
 use nix::unistd::Pid;
@@ -17,6 +17,7 @@ pub struct Command {
     unshare_net: bool,
     new_session: bool,
     die_with_parent: bool,
+    filesystem: Vec<FilesystemOperation>,
 }
 
 impl Command {
@@ -30,6 +31,7 @@ impl Command {
             unshare_net: false,
             new_session: false,
             die_with_parent: false,
+            filesystem: Vec::new(),
         }
     }
 
@@ -78,6 +80,56 @@ impl Command {
         self
     }
 
+    pub fn bind<P: AsRef<Path>, Q: AsRef<Path>>(&mut self, source: P, destination: Q) -> &mut Self {
+        self.filesystem.push(FilesystemOperation::Bind {
+            source: source.as_ref().to_owned(),
+            destination: destination.as_ref().to_owned(),
+            readonly: false,
+        });
+        self
+    }
+
+    pub fn ro_bind<P: AsRef<Path>, Q: AsRef<Path>>(
+        &mut self,
+        source: P,
+        destination: Q,
+    ) -> &mut Self {
+        self.filesystem.push(FilesystemOperation::Bind {
+            source: source.as_ref().to_owned(),
+            destination: destination.as_ref().to_owned(),
+            readonly: true,
+        });
+        self
+    }
+
+    pub fn tmpfs<P: AsRef<Path>>(&mut self, destination: P) -> &mut Self {
+        self.filesystem.push(FilesystemOperation::Tmpfs {
+            destination: destination.as_ref().to_owned(),
+        });
+        self
+    }
+
+    pub fn proc<P: AsRef<Path>>(&mut self, destination: P) -> &mut Self {
+        self.filesystem.push(FilesystemOperation::Proc {
+            destination: destination.as_ref().to_owned(),
+        });
+        self
+    }
+
+    pub fn dir<P: AsRef<Path>>(&mut self, destination: P) -> &mut Self {
+        self.filesystem.push(FilesystemOperation::Dir {
+            destination: destination.as_ref().to_owned(),
+        });
+        self
+    }
+
+    pub fn remount_readonly<P: AsRef<Path>>(&mut self, destination: P) -> &mut Self {
+        self.filesystem.push(FilesystemOperation::RemountReadonly {
+            destination: destination.as_ref().to_owned(),
+        });
+        self
+    }
+
     /// Launch the sandbox and return once its init process is ready.
     ///
     /// The current launcher performs setup after `fork(2)`. Until it is moved
@@ -89,6 +141,7 @@ impl Command {
                 "rootless sandboxing requires a user namespace",
             ));
         }
+        validate_filesystem_paths(&self.filesystem)?;
 
         let config = SandboxConfig {
             program: self.program.clone(),
@@ -98,6 +151,7 @@ impl Command {
             unshare_net: self.unshare_net,
             new_session: self.new_session,
             die_with_parent: self.die_with_parent,
+            filesystem: self.filesystem.clone(),
         };
 
         process::spawn(config).map(|pid| Child { pid, waited: false })
@@ -106,6 +160,47 @@ impl Command {
     pub fn status(&mut self) -> Result<ExitStatus> {
         self.spawn()?.wait()
     }
+}
+
+fn validate_filesystem_paths(operations: &[FilesystemOperation]) -> Result<()> {
+    for operation in operations {
+        match operation {
+            FilesystemOperation::Bind {
+                source,
+                destination,
+                ..
+            } => {
+                validate_absolute_path(source, "bind source must be an absolute path")?;
+                validate_absolute_path(
+                    destination,
+                    "bind destination must be an absolute normalized path",
+                )?;
+            }
+            FilesystemOperation::Tmpfs { destination }
+            | FilesystemOperation::Proc { destination }
+            | FilesystemOperation::Dir { destination }
+            | FilesystemOperation::RemountReadonly { destination } => {
+                validate_absolute_path(
+                    destination,
+                    "filesystem destination must be an absolute normalized path",
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_absolute_path(path: &Path, message: &'static str) -> Result<()> {
+    use std::path::Component;
+
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::RootDir | Component::Normal(_)))
+    {
+        return Err(Error::InvalidConfig(message));
+    }
+    Ok(())
 }
 
 #[derive(Debug)]

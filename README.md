@@ -34,16 +34,23 @@ PID namespaces, with an optional network namespace:
 
 ```console
 cargo run -p bubblewrap-cli -- \
-  --unshare-user --unshare-pid --unshare-net \
+  --unshare-user --unshare-pid --unshare-net --proc /proc \
   /bin/sh -c 'id && echo "sandbox PID: $$"'
 ```
 
 The user namespace maps the invoking user's UID and GID to root inside the
 sandbox. The sandbox init process runs as PID 1 and reaps descendants, while
-the requested command normally runs as PID 2. A procfs instance belonging to
-the new PID namespace is mounted at `/proc`. Filesystem construction,
-`pivot_root`, capabilities and seccomp are not implemented yet; filesystem
-options are rejected rather than silently ignored.
+the requested command normally runs as PID 2. As in Bubblewrap, `--proc /proc`
+mounts a procfs instance belonging to the new PID namespace.
+
+When filesystem operations are present, the sandbox root is assembled using
+Bubblewrap's two-pivot layout: a tmpfs mounted at `/tmp` becomes a staging
+root, host sources are visible below `/oldroot`, destinations are built below
+`/newroot`, and a second `pivot_root` makes `/newroot` the final root while the
+staging root is detached. Bind mounts, read-only bind mounts, tmpfs and procfs
+mounts, directory creation and read-only remounts are currently supported.
+
+Capabilities and seccomp are not implemented yet.
 
 The library launcher currently performs setup after `fork(2)`, so `spawn()`
 should be called before the embedding process starts additional threads.

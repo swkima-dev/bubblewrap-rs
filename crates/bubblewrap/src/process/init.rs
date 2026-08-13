@@ -3,6 +3,7 @@ use super::parent_death;
 use crate::Result;
 use crate::config::SandboxConfig;
 use crate::namespace;
+use crate::rootfs;
 use nix::errno::Errno;
 use nix::mount::{MsFlags, mount};
 use nix::sched::CloneFlags;
@@ -23,8 +24,8 @@ pub(crate) fn run(config: &SandboxConfig, expected_parent: Pid) -> Result<i32> {
     }
     namespace::unshare(flags)?;
     make_mounts_private()?;
-    if config.unshare_pid {
-        mount_sandbox_proc()?;
+    if !config.filesystem.is_empty() {
+        rootfs::setup(&config.filesystem, config.unshare_pid)?;
     }
 
     let mut command = Command::new(&config.program);
@@ -55,19 +56,6 @@ pub(crate) fn run(config: &SandboxConfig, expected_parent: Pid) -> Result<i32> {
 
 fn make_mounts_private() -> Result<()> {
     mount::<str, str, str, str>(None, "/", None, MsFlags::MS_REC | MsFlags::MS_PRIVATE, None)?;
-    Ok(())
-}
-
-fn mount_sandbox_proc() -> Result<()> {
-    // A PID namespace without a matching procfs mount still exposes the host's
-    // process view. Mounting proc here makes `/proc` describe this PID ns.
-    mount(
-        Some("proc"),
-        "/proc",
-        Some("proc"),
-        MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC,
-        None::<&str>,
-    )?;
     Ok(())
 }
 
