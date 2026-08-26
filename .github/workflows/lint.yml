@@ -1,0 +1,25 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+# Make sure CI fails on all warnings, including Clippy lints
+env:
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Required Rust formatter and linter
+        run: rustup component add rustfmt clippy
+
+      - name: Run rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
