@@ -1,9 +1,10 @@
-use bubblewrap::add;
+use std::ffi::OsString;
 
+use bubblewrap::builder::Command;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, trailing_var_arg = true)]
 struct Args {
     /// Ensures child process (COMMAND) dies when bwrap's parent dies. Kills
     /// (SIGKILL) all bwrap sandbox processes in sequence from parent to child
@@ -16,7 +17,7 @@ struct Args {
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_user: bool,
 
-    /// Create a new user namespace
+    /// Create a new pid namespace
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_pid: bool,
 
@@ -35,7 +36,7 @@ struct Args {
     /// Mount new tmpfs on DEST. If the previous option was --perms, it sets
     /// the mode of the tmpfs. Otherwise, the tmpfs has mode 0755.
     #[arg(long, value_name = "DEST")]
-    tempfs: Option<String>,
+    tmpfs: Option<String>,
 
     /// Bind mount the host path SRC on DEST
     #[arg(long, num_args = 2, value_names = ["SRC", "DEST"])]
@@ -55,9 +56,18 @@ struct Args {
     /// specified path
     #[arg(long, value_name = "DEST")]
     remount_ro: Option<String>,
+
+    /// The program to be executed, including command-line arguments.
+    #[arg(required = true, allow_hyphen_values = true)]
+    command: Vec<OsString>,
 }
 
 fn main() {
     let args = Args::parse();
     println!("{:#?}", args);
+
+    Command::new(args.command[0].clone())
+        .args(args.command[1..].to_vec())
+        .exec()
+        .expect("failed to execute process");
 }
