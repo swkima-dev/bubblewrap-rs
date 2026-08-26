@@ -17,7 +17,7 @@ struct Args {
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_user: bool,
 
-    /// Create a new user namespace
+    /// Create a new pid namespace
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_pid: bool,
 
@@ -36,7 +36,7 @@ struct Args {
     /// Mount new tmpfs on DEST. If the previous option was --perms, it sets
     /// the mode of the tmpfs. Otherwise, the tmpfs has mode 0755.
     #[arg(long, value_name = "DEST")]
-    tempfs: Option<String>,
+    tmpfs: Option<String>,
 
     /// Bind mount the host path SRC on DEST
     #[arg(long, num_args = 2, value_names = ["SRC", "DEST"])]
@@ -58,7 +58,7 @@ struct Args {
     remount_ro: Option<String>,
 
     /// The program to be executed, including command-line arguments.
-    #[arg(allow_hyphen_values = true)]
+    #[arg(required = true, allow_hyphen_values = true)]
     command: Vec<OsString>,
 }
 
