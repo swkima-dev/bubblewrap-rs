@@ -1,9 +1,10 @@
-use bubblewrap::add;
+use std::ffi::OsString;
 
+use bubblewrap::builder::Command;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, trailing_var_arg = true)]
 struct Args {
     /// Ensures child process (COMMAND) dies when bwrap's parent dies. Kills
     /// (SIGKILL) all bwrap sandbox processes in sequence from parent to child
@@ -55,9 +56,18 @@ struct Args {
     /// specified path
     #[arg(long, value_name = "DEST")]
     remount_ro: Option<String>,
+
+    /// The program to be executed, including command-line arguments.
+    #[arg(allow_hyphen_values = true)]
+    command: Vec<OsString>,
 }
 
 fn main() {
     let args = Args::parse();
     println!("{:#?}", args);
+
+    Command::new(args.command[0].clone())
+        .args(args.command[1..].to_vec())
+        .exec()
+        .expect("failed to execute process");
 }
