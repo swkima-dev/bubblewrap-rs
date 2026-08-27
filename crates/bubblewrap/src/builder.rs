@@ -1,4 +1,6 @@
-use std::{ffi::OsString, io::Result};
+use crate::sandbox::create::Sandbox;
+use anyhow::Result;
+use std::ffi::OsString;
 
 pub struct Command {
     program: OsString,
@@ -19,9 +21,10 @@ impl Command {
     }
 
     pub fn exec(&self) -> Result<()> {
-        std::process::Command::new(self.program.clone())
-            .args(self.args.clone())
-            .status()?;
-        Ok(())
+        let sandbox = Sandbox::new();
+        sandbox.create()
+        // std::process::Command::new(self.program.clone())
+        //     .args(self.args.clone())
+        //     .status()?;
     }
 }

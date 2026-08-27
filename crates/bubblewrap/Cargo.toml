@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.104"
+nix = { version = "0.29", features = [
+  "process",
+  "sched",
+  "user",
+  "hostname",
+  "mount",
+  "fs",
+] }
