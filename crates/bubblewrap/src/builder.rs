@@ -1,27 +1,28 @@
-use crate::sandbox::create::Sandbox;
+use crate::{config::Config, sandbox::Sandbox};
 use anyhow::Result;
 use std::ffi::OsString;
 
 pub struct Command {
-    program: OsString,
-    args: Vec<OsString>,
+    config: Config,
 }
 
 impl Command {
     pub fn new(program: OsString) -> Self {
         Self {
-            program,
-            args: Vec::new(),
+            config: Config::new(program),
         }
     }
 
     pub fn args(&mut self, args: Vec<OsString>) -> &mut Self {
-        self.args = args;
+        self.config.args(args);
         self
     }
 
+    // TODO: user namespace's builder function herer.
+    // TODO: implement user namespace is should task
+
     pub fn exec(&self) -> Result<()> {
-        let sandbox = Sandbox::new();
+        let sandbox = Sandbox::new(self.config.clone());
         sandbox.create()
         // std::process::Command::new(self.program.clone())
         //     .args(self.args.clone())

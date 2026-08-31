@@ -1,6 +1,6 @@
 use nix::{sys::wait::waitpid, unistd::Pid};
 
-use crate::sandbox::create::Sandbox;
+use crate::sandbox::Sandbox;
 
 impl Sandbox {
     pub fn monitor(&self, child: Pid) {

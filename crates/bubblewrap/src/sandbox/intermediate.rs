@@ -1,4 +1,4 @@
-use crate::sandbox::create::Sandbox;
+use crate::sandbox::Sandbox;
 use anyhow::Result;
 use nix::sys::wait::waitpid;
 use nix::unistd::{ForkResult, fork};
@@ -22,7 +22,7 @@ impl Sandbox {
                 unsafe { exit(0) };
             }
 
-            ForkResult::Child => self.init().unwrap(),
+            ForkResult::Child => self.init(),
         }
         Ok(())
     }
