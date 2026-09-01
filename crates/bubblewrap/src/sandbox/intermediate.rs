@@ -1,5 +1,6 @@
 use crate::sandbox::Sandbox;
 use anyhow::Result;
+use nix::libc::{_exit, EXIT_FAILURE};
 use nix::sys::wait::waitpid;
 use nix::unistd::{ForkResult, fork};
 use nix::{libc::exit, unistd::write};
@@ -22,7 +23,12 @@ impl Sandbox {
                 unsafe { exit(0) };
             }
 
-            ForkResult::Child => self.init(),
+            ForkResult::Child => {
+                if let Err(e) = self.init() {
+                    eprintln!("bwrap: init failed: {e}");
+                    unsafe { _exit(EXIT_FAILURE) };
+                }
+            }
         }
         Ok(())
     }
