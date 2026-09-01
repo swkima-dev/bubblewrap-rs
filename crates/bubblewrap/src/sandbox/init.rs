@@ -1,7 +1,6 @@
-use std::{ffi::CString, os::unix::ffi::OsStrExt};
+use std::{ffi::CString, io::Result, os::unix::ffi::OsStrExt};
 
 use crate::sandbox::Sandbox;
-use anyhow::Result;
 use nix::unistd::execve;
 
 impl Sandbox {

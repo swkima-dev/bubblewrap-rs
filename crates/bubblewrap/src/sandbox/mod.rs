@@ -2,8 +2,9 @@ pub mod init;
 pub mod intermediate;
 pub mod monitor;
 
+use std::io::Result;
+
 use crate::config::Config;
-use anyhow::Result;
 use nix::unistd::{ForkResult, fork};
 
 pub struct Sandbox {

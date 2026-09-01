@@ -1,6 +1,5 @@
 use crate::{config::Config, sandbox::Sandbox};
-use anyhow::Result;
-use std::ffi::OsString;
+use std::{ffi::OsString, io::Result};
 
 pub struct Command {
     config: Config,

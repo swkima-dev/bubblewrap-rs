@@ -1,5 +1,6 @@
+use std::io::Result;
+
 use crate::sandbox::Sandbox;
-use anyhow::Result;
 use nix::libc::{_exit, EXIT_FAILURE};
 use nix::sys::wait::waitpid;
 use nix::unistd::{ForkResult, fork};
