@@ -20,7 +20,7 @@ impl Sandbox {
             ForkResult::Parent { child, .. } => {
                 self.monitor(child);
             }
-            ForkResult::Child => self.intermediate()?,
+            ForkResult::Child => self.intermediate(),
         }
 
         Ok(())

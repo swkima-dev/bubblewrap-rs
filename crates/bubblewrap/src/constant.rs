@@ -1,0 +1,1 @@
+pub const EXIT_DOMAIN_FAILURE: i32 = 126;
