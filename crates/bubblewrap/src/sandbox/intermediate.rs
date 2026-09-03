@@ -19,8 +19,13 @@ impl Sandbox {
                     "Continuing execution in intermediate process\n".as_bytes(),
                 )
                 .ok();
-                waitpid(child, None).unwrap();
-                unsafe { _exit(0) };
+                match waitpid(child, None) {
+                    Ok(status) => {
+                        let exit_code = Self::waitstatus_to_exitcode(status);
+                        unsafe { _exit(exit_code) }
+                    }
+                    Err(_) => unsafe { _exit(EXIT_DOMAIN_FAILURE) },
+                }
             }
 
             Ok(ForkResult::Child) => {

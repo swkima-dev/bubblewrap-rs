@@ -1,4 +1,8 @@
-use std::ffi::OsString;
+use std::{
+    ffi::OsString,
+    os::unix::process::ExitStatusExt,
+    process::{ExitCode, ExitStatus},
+};
 
 use bubblewrap::builder::Command;
 use clap::Parser;
@@ -62,12 +66,18 @@ struct Args {
     command: Vec<OsString>,
 }
 
-fn main() {
+fn main() -> ExitCode {
     let args = Args::parse();
     println!("{:#?}", args);
 
-    Command::new(args.command[0].clone())
+    let exit_status = Command::new(args.command[0].clone())
         .args(args.command[1..].to_vec())
         .exec()
-        .expect("failed to execute process");
+        .unwrap_or(ExitStatus::from_raw(255 << 8))
+        .code();
+
+    match exit_status {
+        Some(code) => ExitCode::from(u8::try_from(code).unwrap_or(1)),
+        None => ExitCode::FAILURE,
+    }
 }

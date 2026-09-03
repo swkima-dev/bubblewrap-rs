@@ -1,5 +1,5 @@
 use crate::{config::Config, sandbox::Sandbox};
-use std::{ffi::OsString, io::Result};
+use std::{ffi::OsString, io::Result, process::ExitStatus};
 
 pub struct Command {
     config: Config,
@@ -20,11 +20,8 @@ impl Command {
     // TODO: user namespace's builder function herer.
     // TODO: implement user namespace is should task
 
-    pub fn exec(&self) -> Result<()> {
+    pub fn exec(&self) -> Result<ExitStatus> {
         let sandbox = Sandbox::new(self.config.clone());
         sandbox.create()
-        // std::process::Command::new(self.program.clone())
-        //     .args(self.args.clone())
-        //     .status()?;
     }
 }
