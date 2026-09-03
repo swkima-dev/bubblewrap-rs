@@ -1,0 +1,1 @@
+pub const EXIT_INTERNAL_FAILURE: i32 = 255;
