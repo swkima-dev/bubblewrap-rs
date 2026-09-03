@@ -4,7 +4,7 @@ pub mod monitor;
 
 use std::{io::Result, os::unix::process::ExitStatusExt, process::ExitStatus};
 
-use crate::{config::Config, constant::EXIT_DOMAIN_FAILURE};
+use crate::{config::Config, constant::EXIT_INTERNAL_FAILURE};
 use nix::{
     sys::wait::WaitStatus,
     unistd::{ForkResult, fork},
@@ -32,7 +32,7 @@ impl Sandbox {
         match status {
             WaitStatus::Exited(_, code) => code,
             WaitStatus::Signaled(_, signal, _) => 128 + (signal as i32),
-            _ => EXIT_DOMAIN_FAILURE,
+            _ => EXIT_INTERNAL_FAILURE,
         }
     }
 
@@ -40,7 +40,7 @@ impl Sandbox {
         ExitStatus::from_raw(match status {
             WaitStatus::Exited(_, code) => (code & 0xff) << 8,
             WaitStatus::Signaled(_, signal, _) => signal as i32,
-            _ => (EXIT_DOMAIN_FAILURE & 0xff) << 8,
+            _ => (EXIT_INTERNAL_FAILURE & 0xff) << 8,
         })
     }
 }

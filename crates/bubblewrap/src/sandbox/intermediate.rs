@@ -1,4 +1,4 @@
-use crate::constant::EXIT_DOMAIN_FAILURE;
+use crate::constant::EXIT_INTERNAL_FAILURE;
 use crate::sandbox::Sandbox;
 use nix::libc::{_exit, EXIT_FAILURE};
 use nix::sys::wait::waitpid;
@@ -24,7 +24,7 @@ impl Sandbox {
                         let exit_code = Self::waitstatus_to_exitcode(status);
                         unsafe { _exit(exit_code) }
                     }
-                    Err(_) => unsafe { _exit(EXIT_DOMAIN_FAILURE) },
+                    Err(_) => unsafe { _exit(EXIT_INTERNAL_FAILURE) },
                 }
             }
 
@@ -35,7 +35,7 @@ impl Sandbox {
                 unsafe { _exit(EXIT_FAILURE) };
             }
 
-            Err(_) => unsafe { _exit(EXIT_DOMAIN_FAILURE) },
+            Err(_) => unsafe { _exit(EXIT_INTERNAL_FAILURE) },
         }
     }
 }
