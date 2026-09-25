@@ -14,10 +14,12 @@ impl Sandbox {
         )
         .ok();
 
-        if let Err(_) = namespaces::user::apply_user_namespace(
+        if namespaces::user::apply_user_namespace(
             &self.config.internal_uid,
             &self.config.internal_gid,
-        ) {
+        )
+        .is_err()
+        {
             unsafe { _exit(EXIT_INTERNAL_FAILURE) }
         }
 

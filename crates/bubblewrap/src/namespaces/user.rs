@@ -25,7 +25,7 @@ pub(crate) fn apply_user_namespace(internal_uid: &Uid, internal_gid: &Gid) -> Re
 }
 
 fn write_file(path: &str, content: &str) -> std::io::Result<()> {
-    let mut file = File::create(&path)?;
+    let mut file = File::create(path)?;
 
     file.write_all(content.as_bytes())
 }

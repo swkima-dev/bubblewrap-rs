@@ -1,7 +1,5 @@
 use std::{os::unix::process::ExitStatusExt, process::ExitStatus};
 
-use bubblewrap;
-
 #[test]
 fn apply_user_namespace() {
     let args: Vec<String> = vec![
