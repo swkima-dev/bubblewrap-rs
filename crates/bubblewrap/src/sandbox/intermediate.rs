@@ -3,8 +3,8 @@ use crate::namespaces;
 use crate::sandbox::Sandbox;
 use nix::libc::{_exit, EXIT_FAILURE};
 use nix::sys::wait::waitpid;
+use nix::unistd::write;
 use nix::unistd::{ForkResult, fork};
-use nix::unistd::{Gid, Uid, write};
 
 impl Sandbox {
     pub fn intermediate(&self) -> ! {
@@ -14,10 +14,11 @@ impl Sandbox {
         )
         .ok();
 
-        if let Err(status) =
-            namespaces::user::apply_user_namespace(&Uid::from_raw(0), &Gid::from_raw(0))
-        {
-            unsafe { _exit(status) }
+        if let Err(_) = namespaces::user::apply_user_namespace(
+            &self.config.internal_uid,
+            &self.config.internal_gid,
+        ) {
+            unsafe { _exit(EXIT_INTERNAL_FAILURE) }
         }
 
         match unsafe { fork() } {

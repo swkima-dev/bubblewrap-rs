@@ -29,6 +29,14 @@ struct Args {
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_net: bool,
 
+    // Use a custom user id in the sandbox
+    #[arg(long, value_name = "UID")]
+    uid: Option<u32>,
+
+    // Use a custom group id in the sandbox
+    #[arg(long, value_name = "GID")]
+    gid: Option<u32>,
+
     /// Change directory to DIR
     #[arg(long, value_name = "DIR")]
     chdir: Option<String>,
@@ -70,8 +78,18 @@ fn main() -> ExitCode {
     let args = Args::parse();
     println!("{:#?}", args);
 
-    let exit_status = Command::new(args.command[0].clone())
-        .args(args.command[1..].to_vec())
+    let mut command = Command::new(args.command[0].clone());
+    command.args(args.command[1..].to_vec());
+
+    if let Some(uid) = args.uid {
+        command.internal_uid(uid);
+    }
+
+    if let Some(gid) = args.gid {
+        command.internal_gid(gid);
+    }
+
+    let exit_status = command
         .exec()
         .unwrap_or(ExitStatus::from_raw(255 << 8))
         .code();
