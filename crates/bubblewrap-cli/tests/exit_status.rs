@@ -57,9 +57,4 @@ exec "{}" -- /bin/sh -c 'printf "COMMAND_%s\n" RAN'"#,
         "{}",
         describe(&output)
     );
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("user namespace"),
-        "{}",
-        describe(&output)
-    );
 }

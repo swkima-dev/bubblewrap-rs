@@ -14,7 +14,7 @@ impl Sandbox {
         )
         .ok();
 
-        if !&self.config.share_user
+        if !self.config.share_user
             && namespaces::user::apply_user_namespace(
                 &self.config.internal_uid.unwrap_or(getuid()),
                 &self.config.internal_gid.unwrap_or(getgid()),
