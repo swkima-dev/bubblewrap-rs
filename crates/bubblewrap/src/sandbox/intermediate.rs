@@ -1,9 +1,10 @@
 use crate::constant::EXIT_INTERNAL_FAILURE;
+use crate::namespaces;
 use crate::sandbox::Sandbox;
 use nix::libc::{_exit, EXIT_FAILURE};
 use nix::sys::wait::waitpid;
-use nix::unistd::write;
-use nix::unistd::{ForkResult, fork};
+use nix::unistd::{ForkResult, fork, getgid};
+use nix::unistd::{getuid, write};
 
 impl Sandbox {
     pub fn intermediate(&self) -> ! {
@@ -12,6 +13,18 @@ impl Sandbox {
             "I'm a new intermediate process\n".as_bytes(),
         )
         .ok();
+
+        if !self.config.share_user
+            && namespaces::user::apply_user_namespace(
+                &self.config.internal_uid.unwrap_or(getuid()),
+                &self.config.internal_gid.unwrap_or(getgid()),
+            )
+            .is_err()
+        {
+            // TODO: You should use a pipe to propagate Errno errors as std::io::Error.
+            unsafe { _exit(EXIT_INTERNAL_FAILURE) }
+        }
+
         match unsafe { fork() } {
             Ok(ForkResult::Parent { child, .. }) => {
                 write(

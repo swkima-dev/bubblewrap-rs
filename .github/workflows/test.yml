@@ -15,7 +15,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Allow unprivileged user namespaces
+      # Ubuntu 24.04+ restricts unprivileged user namespaces with AppArmor.
+      run: |
+        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+        fi
     - name: Build
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Run root-only tests
+      run: sudo -E env "PATH=$PATH" cargo test --verbose -- --ignored

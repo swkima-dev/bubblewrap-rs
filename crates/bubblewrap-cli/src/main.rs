@@ -18,8 +18,13 @@ struct Args {
     die_with_parent: bool,
 
     /// Create a new user namespace
+    /// This option is retained for compatibility, but a new user namespace is created even if it is not specified.
+    /// If you wish to use the current user namespace, you should explicitly specify the `share_user` option.
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_user: bool,
+
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    share_user: bool,
 
     /// Create a new pid namespace
     #[arg(long, action = clap::ArgAction::SetTrue)]
@@ -28,6 +33,14 @@ struct Args {
     /// Create a new network namespace
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_net: bool,
+
+    // Use a custom user id in the sandbox
+    #[arg(long, value_name = "UID")]
+    uid: Option<u32>,
+
+    // Use a custom group id in the sandbox
+    #[arg(long, value_name = "GID")]
+    gid: Option<u32>,
 
     /// Change directory to DIR
     #[arg(long, value_name = "DIR")]
@@ -70,8 +83,22 @@ fn main() -> ExitCode {
     let args = Args::parse();
     println!("{:#?}", args);
 
-    let exit_status = Command::new(args.command[0].clone())
-        .args(args.command[1..].to_vec())
+    let mut command = Command::new(args.command[0].clone());
+    command.args(args.command[1..].to_vec());
+
+    if let Some(uid) = args.uid {
+        command.internal_uid(uid);
+    }
+
+    if let Some(gid) = args.gid {
+        command.internal_gid(gid);
+    }
+
+    if args.share_user {
+        command.share_user();
+    }
+
+    let exit_status = command
         .exec()
         .unwrap_or(ExitStatus::from_raw(255 << 8))
         .code();
