@@ -27,8 +27,28 @@ impl Command {
         self
     }
 
+    pub fn share_user(&mut self) -> &mut Self {
+        self.config.share_user();
+        self
+    }
+
     pub fn exec(&self) -> Result<ExitStatus> {
+        self.config_validate()?;
+
         let sandbox = Sandbox::new(self.config.clone());
         sandbox.create()
+    }
+
+    fn config_validate(&self) -> Result<()> {
+        if self.config.share_user
+            && (self.config.internal_uid.is_some() || self.config.internal_gid.is_some())
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "internal_uid/internal_gid cannot be set with share_user",
+            ));
+        }
+
+        Ok(())
     }
 }

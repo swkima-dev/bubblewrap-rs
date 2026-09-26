@@ -18,8 +18,13 @@ struct Args {
     die_with_parent: bool,
 
     /// Create a new user namespace
+    /// This option is retained for compatibility, but a new user namespace is created even if it is not specified.
+    /// If you wish to use the current user namespace, you should explicitly specify the `share_user` option.
     #[arg(long, action = clap::ArgAction::SetTrue)]
     unshare_user: bool,
+
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    share_user: bool,
 
     /// Create a new pid namespace
     #[arg(long, action = clap::ArgAction::SetTrue)]
@@ -87,6 +92,10 @@ fn main() -> ExitCode {
 
     if let Some(gid) = args.gid {
         command.internal_gid(gid);
+    }
+
+    if args.share_user {
+        command.share_user();
     }
 
     let exit_status = command
