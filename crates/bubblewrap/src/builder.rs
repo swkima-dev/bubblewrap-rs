@@ -32,6 +32,11 @@ impl Command {
         self
     }
 
+    pub fn unshare_pid(&mut self) -> &mut Self {
+        self.config.unshare_pid();
+        self
+    }
+
     pub fn exec(&self) -> Result<ExitStatus> {
         self.config_validate()?;
 

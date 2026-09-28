@@ -1,6 +1,9 @@
 use std::ffi::OsString;
 
-use nix::unistd::{Gid, Uid};
+use nix::{
+    sched::CloneFlags,
+    unistd::{Gid, Uid},
+};
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -9,6 +12,7 @@ pub struct Config {
     pub(crate) internal_uid: Option<Uid>,
     pub(crate) internal_gid: Option<Gid>,
     pub(crate) share_user: bool,
+    pub(crate) namespaces: CloneFlags,
 }
 
 impl Config {
@@ -19,6 +23,10 @@ impl Config {
             internal_uid: None,
             internal_gid: None,
             share_user: false,
+            // Whether or not to create a new User Namespace is not controlled by these CloneFlags, but solely by `share_user`.
+            // This is because creating a new user namespace is the initial step for an unprivileged user to create a new namespace,
+            // and due to PID namespace constraints—it must be applied at an intermediate process stage.
+            namespaces: CloneFlags::empty().union(CloneFlags::CLONE_NEWUSER),
         }
     }
 
@@ -37,5 +45,9 @@ impl Config {
 
     pub fn share_user(&mut self) {
         self.share_user = true;
+    }
+
+    pub fn unshare_pid(&mut self) {
+        self.namespaces.insert(CloneFlags::CLONE_NEWPID);
     }
 }

@@ -2,6 +2,7 @@ use crate::constant::EXIT_INTERNAL_FAILURE;
 use crate::namespaces;
 use crate::sandbox::Sandbox;
 use nix::libc::{_exit, EXIT_FAILURE};
+use nix::sched::{CloneFlags, unshare};
 use nix::sys::wait::waitpid;
 use nix::unistd::{ForkResult, fork, getgid};
 use nix::unistd::{getuid, write};
@@ -23,6 +24,12 @@ impl Sandbox {
         {
             // TODO: You should use a pipe to propagate Errno errors as std::io::Error.
             unsafe { _exit(EXIT_INTERNAL_FAILURE) }
+        }
+
+        if self.config.namespaces.contains(CloneFlags::CLONE_NEWPID) {
+            if let Err(_) = unshare(CloneFlags::CLONE_NEWPID) {
+                unsafe { _exit(EXIT_INTERNAL_FAILURE) }
+            }
         }
 
         match unsafe { fork() } {

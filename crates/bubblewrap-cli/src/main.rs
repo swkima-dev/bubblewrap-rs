@@ -98,6 +98,10 @@ fn main() -> ExitCode {
         command.share_user();
     }
 
+    if args.unshare_pid {
+        command.unshare_pid();
+    }
+
     let exit_status = command
         .exec()
         .unwrap_or(ExitStatus::from_raw(255 << 8))
