@@ -1,7 +1,8 @@
 use crate::constant::EXIT_INTERNAL_FAILURE;
 use crate::namespaces;
 use crate::sandbox::Sandbox;
-use nix::libc::{_exit, EXIT_FAILURE};
+use nix::libc::_exit;
+use nix::sched::{CloneFlags, unshare};
 use nix::sys::wait::waitpid;
 use nix::unistd::{ForkResult, fork, getgid};
 use nix::unistd::{getuid, write};
@@ -25,6 +26,12 @@ impl Sandbox {
             unsafe { _exit(EXIT_INTERNAL_FAILURE) }
         }
 
+        if self.config.namespaces.contains(CloneFlags::CLONE_NEWPID)
+            && unshare(CloneFlags::CLONE_NEWPID).is_err()
+        {
+            unsafe { _exit(EXIT_INTERNAL_FAILURE) }
+        }
+
         match unsafe { fork() } {
             Ok(ForkResult::Parent { child, .. }) => {
                 write(
@@ -42,10 +49,7 @@ impl Sandbox {
             }
 
             Ok(ForkResult::Child) => {
-                if let Err(e) = self.init() {
-                    eprintln!("bwrap: init failed: {e}");
-                }
-                unsafe { _exit(EXIT_FAILURE) };
+                self.init();
             }
 
             Err(_) => unsafe { _exit(EXIT_INTERNAL_FAILURE) },

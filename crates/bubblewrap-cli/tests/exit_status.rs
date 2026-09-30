@@ -51,7 +51,7 @@ exec "{}" -- /bin/sh -c 'printf "COMMAND_%s\n" RAN'"#,
         "could not disable user namespaces for the test\n{}",
         describe(&output)
     );
-    assert_eq!(output.status.code(), Some(255), "{}", describe(&output));
+    assert_eq!(output.status.code(), Some(1), "{}", describe(&output));
     assert!(
         !String::from_utf8_lossy(&output.stdout).contains("COMMAND_RAN"),
         "{}",
